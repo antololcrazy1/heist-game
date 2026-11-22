@@ -1,21 +1,92 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>The Gilded Hour — a heist game</title>
+<title>The Gilded Hour</title>
+<link rel="icon" href="data:,">
 <style>
-  html, body { margin: 0; padding: 0; background: #0d0b16; }
-  body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-  #wrap { line-height: 0; touch-action: none; }
-  canvas { width: min(96vw, 960px); height: auto; image-rendering: auto; background: #0d0b16; }
-  #selftest { display: none; white-space: pre; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #0e0b18;
+    height: 100%;
+    overflow: hidden;
+    font-family: system-ui, sans-serif;
+  }
+  #wrap {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #game {
+    width: min(100vw, calc(100vh * 960 / 720));
+    height: auto;
+    max-height: 100vh;
+    display: block;
+    touch-action: none;
+    background: #171226;
+  }
+  #touch { display: none; }
+  #touch.on { display: block; }
+  #joy {
+    position: absolute;
+    left: 18px;
+    bottom: 18px;
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.07);
+    border: 2px solid rgba(242,193,78,0.5);
+    touch-action: none;
+  }
+  #knob {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(77,227,194,0.55);
+    border: 2px solid #4de3c2;
+    transform: translate(-50%, -50%);
+  }
+  .tbtn {
+    position: absolute;
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    border: 2px solid rgba(242,193,78,0.6);
+    background: rgba(20,16,32,0.7);
+    color: #f2c14e;
+    font: 700 17px system-ui, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+    user-select: none;
+  }
+  .tbtn.active { background: rgba(77,227,194,0.55); color: #0b3a32; }
+  #btn-e { right: 18px; bottom: 96px; }
+  #btn-q { right: 88px; bottom: 30px; }
+  #btn-f { right: 18px; bottom: 30px; }
+  #btn-sneak { right: 158px; bottom: 30px; width: 72px; height: 44px; border-radius: 22px; font-size: 12px; }
 </style>
 </head>
 <body>
-<div id="wrap"><canvas id="game" width="960" height="720"></canvas></div>
-<div id="selftest"></div>
-<noscript><p style="color:#fff">The Gilded Hour needs JavaScript to play.</p></noscript>
-<script type="module" src="./src/main.js"></script>
+<div id="wrap">
+  <canvas id="game" width="960" height="720"></canvas>
+  <div id="touch">
+    <div id="joy"><div id="knob"></div></div>
+    <div class="tbtn" id="btn-e">E</div>
+    <div class="tbtn" id="btn-q">Q</div>
+    <div class="tbtn" id="btn-f">F</div>
+    <div class="tbtn" id="btn-sneak">SNEAK</div>
+  </div>
+</div>
+<script type="module" src="./src/boot.js"></script>
 </body>
 </html>

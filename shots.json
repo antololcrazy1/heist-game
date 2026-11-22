@@ -1,1 +1,1 @@
-[{"name":"1-cover.jpg","query":"?shot=cover&seed=1"},{"name":"2-vault.jpg","query":"?shot=vault&seed=1"},{"name":"3-spotted.jpg","query":"?shot=spotted&seed=1"},{"name":"4-getaway.jpg","query":"?shot=getaway&seed=1"}]
+{"height":720,"shots":[{"file":"1-cover.jpg","scene":"cover","url":"game/index.html?scene=cover"},{"file":"2-vault.jpg","scene":"vault","url":"game/index.html?scene=vault"},{"file":"3-spotted.jpg","scene":"spotted","url":"game/index.html?scene=spotted"},{"file":"4-getaway.jpg","scene":"getaway","url":"game/index.html?scene=getaway"}],"width":1280}

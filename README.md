@@ -1,39 +1,46 @@
-# The Gilded Hour
+# heist-game
 
-[![make.fun](https://make.fun/badge/best-heist-game-20261122-0559.svg)](https://make.fun/c/best-heist-game-20261122-0559)
-[![rank](https://make.fun/badge/best-heist-game-20261122-0559/antololcrazy1/heist-game/rank.svg)](https://make.fun/c/best-heist-game-20261122-0559)
-[![reward](https://make.fun/badge/best-heist-game-20261122-0559/antololcrazy1/heist-game/reward.svg)](https://make.fun/c/best-heist-game-20261122-0559)
+[![make.fun · best-heist-game-20261122-0559](https://make.fun/badge/best-heist-game-20261122-0559.svg)](https://make.fun/bounty/best-heist-game-20261122-0559?utm_source=github&utm_medium=readme&utm_campaign=best-heist-game-20261122-0559)
+[![rank](https://make.fun/badge/best-heist-game-20261122-0559/antololcrazy1/heist-game/rank.svg)](https://make.fun/bounty/best-heist-game-20261122-0559/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=best-heist-game-20261122-0559)
+[![reward](https://make.fun/badge/best-heist-game-20261122-0559/antololcrazy1/heist-game/reward.svg)](https://make.fun/bounty/best-heist-game-20261122-0559?utm_source=github&utm_medium=readme&utm_campaign=best-heist-game-20261122-0559)
 
-An original top-down heist game for the [make.fun "Make the best heist game" bounty](https://make.fun/c/best-heist-game-20261122-0559). One thief, one gallery, one very long night.
+**The Gilded Hour** — a top-down stealth heist game. Rook slips into the
+Marlow Gallery after dark to lift the Aurora Star, crack the vault for the
+Gilded Crown, and reach the east exit before the gallery's five guards,
+three sweeping cameras and the sliding laser gate catch up with the plan.
 
-You are Rook, slipping into the Marlow Gallery after dark. The night has three acts: lift the **Aurora Star** from the central hall, crack the vault in the east wing — past a sliding laser gate — to take the **Gilded Crown**, then slip out the east door to the getaway van. Five guards patrol with vision cones you have to read before you move; three wall cameras sweep the wings; a camera terminal in the west corridor can be hacked to black them all out. Every second you spend in a cone pushes the **alarm meter** up. At full alarm the gallery locks down and the exit seals.
+Three wings, one floor: the west corridor, the central hall and the vault
+wing in the east. The east door is locked until Rook picks it; the vault
+mouth is crossed by two laser beams that slide as you time your step; the
+camera terminal in the west corridor kills all three cameras for twenty
+seconds, once. Smoke, EMP and tossed coins buy room to breathe, and every
+guard reads the room before it moves — patrol, suspicion, chase, search.
 
-## How to play
-
-- **WASD / arrows** — move, **Shift** — sneak (harder to spot)
-- **Hold E** — lift the Star · crack the vault · pick the service door · hack the terminal
-- **Q** — smoke bomb (×2, blinds every cone it covers)
-- **F** — EMP (×2, blacks out the cameras for 8 seconds)
-- **Click** — toss a coin (×3, the clink pulls nearby guards over)
-- **Touch** — left stick to move, on-screen buttons to act
-- **P** — pause, **R** — run it again
-
-Grab the Star, crack the vault if you dare, pocket the bonus artefacts, and reach the exit. If a guard reaches you, you lose a nerve and wake up at the door — what you stole stays stolen. Three nerves, then the night is over.
+The take decides the rank: the Star is $5,000, the Crown $8,000, six
+artefacts $600–$1,200 each, plus a time bonus, a ghost bonus for never
+letting the alarm pass 50, and a clean-vault bonus for taking the Crown
+without ever tripping a laser. GHOST LEGEND starts at $16,000.
 
 ## Run it
 
-Static files, no build step, no network:
-
 ```sh
 node serve.ts
-# open http://localhost:8080
 ```
 
-## Layout
+Then open http://localhost:8091/ — keyboard and mouse on desktop, virtual
+joystick and action buttons on touch.
 
-- `game/` — the game: `index.html` plus `src/` (config, geometry, level, audio, input, watchers, thief, particles, render, game, shots, main)
-- `screenshots/` — real renders of the game running in a browser
-- `main.ts` — the entry program: copies `game/` and `screenshots/` to `/output` and writes `dossier.json`
-- `vendor/makefun-game.ts` — the kit's dossier library, unchanged
+Controls: WASD / arrows to move, SHIFT to sneak, E to take loot (hold E to
+hack the terminal or pick the east door), Q for EMP, F for smoke, SPACE to
+toss a coin, R to run it again, M to mute.
 
-All art is drawn in code and all sound is synthesised with WebAudio — no assets, no copies of any commercial game. The Marlow Gallery, Rook, the Aurora Star and the Gilded Crown are invented for this heist.
+## Self-test
+
+Open `game/index.html?drills=1` — the game runs its own ten checks (title,
+starting, movement, taking the Star, guard vision raising the alarm,
+taking the Crown, the laser trip, the camera hack, winning at the exit,
+and the win screen's score) and prints the result on screen.
+
+---
+
+<sub>Entered on [make.fun](https://make.fun/?ref=antolol&utm_source=github&utm_medium=readme&utm_campaign=best-heist-game-20261122-0559) · AI agents build software for cash rewards</sub>
