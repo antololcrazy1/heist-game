@@ -7,11 +7,37 @@ import { alarmStage, scoreOf } from './siren.js';
 import { laserBeams, camerasDown } from './defenses.js';
 import { interactPrompt } from './rook.js';
 import { clamp } from './geom.js';
+import { GALLERY_W, GALLERY_H } from './mansion.js';
+import { levelBoxRect, levelSummary, getLevel } from './levels.js';
 
 const HUD_H = 64;
 const GOLD = '#f2c14e';
 const GOLD_DIM = '#8a6d2f';
 const TEAL = '#4de3c2';
+
+/** How close the camera sits: 1.6x, so the thief fills the frame. */
+const ZOOM = 1.6;
+
+/** The camera centre for a world: it follows Rook, clamped inside the map. */
+function cameraFor(world) {
+  const viewW = 960;
+  const viewH = 720 - HUD_H;
+  const halfW = viewW / 2 / ZOOM;
+  const halfH = viewH / 2 / ZOOM;
+  return {
+    x: clamp(world.rook.x, halfW, world.mansion.w - halfW),
+    y: clamp(world.rook.y, halfH, world.mansion.h - halfH),
+  };
+}
+
+/** Map a canvas point (0..960, 0..720) to gallery coordinates, through the camera. */
+export function screenToWorld(world, sx, sy) {
+  const cam = cameraFor(world);
+  return {
+    x: cam.x + (sx - 480) / ZOOM,
+    y: cam.y + (sy - HUD_H - 328) / ZOOM,
+  };
+}
 
 /** Deterministic dust motes (fixed positions, twinkle with time). */
 const MOTES = [];
@@ -21,7 +47,7 @@ const MOTES = [];
     seed = (seed * 1103515245 + 12345) % 2147483648;
     return seed / 2147483648;
   };
-  for (let i = 0; i < 46; i++) MOTES.push({ x: rnd() * 960, y: rnd() * 656, r: 0.8 + rnd() * 1.6, p: rnd() * 6.28 });
+  for (let i = 0; i < 46; i++) MOTES.push({ x: rnd() * GALLERY_W, y: rnd() * GALLERY_H, r: 0.8 + rnd() * 1.6, p: rnd() * 6.28 });
 }
 
 function conePath(ctx, x, y, angle, half, range) {
@@ -186,31 +212,36 @@ export function drawWorld(ctx, world) {
     ctx.translate((Math.random() - 0.5) * world.shake * 22, (Math.random() - 0.5) * world.shake * 22);
   }
   ctx.translate(0, HUD_H);
+  // Follow-camera: zoom in on Rook, never past the map's edge.
+  const cam = cameraFor(world);
+  ctx.translate(480, 328);
+  ctx.scale(ZOOM, ZOOM);
+  ctx.translate(-cam.x, -cam.y);
 
   // --- floor: dark marble tiles ---
   ctx.fillStyle = '#171226';
-  ctx.fillRect(0, 0, 960, 656);
+  ctx.fillRect(0, 0, mansion.w, mansion.h);
   ctx.strokeStyle = 'rgba(216,168,78,0.05)';
   ctx.lineWidth = 1;
-  for (let x = 0; x <= 960; x += 40) {
+  for (let x = 0; x <= mansion.w; x += 40) {
     ctx.beginPath();
     ctx.moveTo(x, 0);
-    ctx.lineTo(x, 656);
+    ctx.lineTo(x, mansion.h);
     ctx.stroke();
   }
-  for (let y = 0; y <= 656; y += 40) {
+  for (let y = 0; y <= mansion.h; y += 40) {
     ctx.beginPath();
     ctx.moveTo(0, y);
-    ctx.lineTo(960, y);
+    ctx.lineTo(mansion.w, y);
     ctx.stroke();
   }
   // Warm golden-hour wash from the top.
-  const wash = ctx.createLinearGradient(0, 0, 0, 656);
+  const wash = ctx.createLinearGradient(0, 0, 0, mansion.h);
   wash.addColorStop(0, 'rgba(255,190,90,0.10)');
   wash.addColorStop(0.5, 'rgba(255,190,90,0.03)');
   wash.addColorStop(1, 'rgba(20,12,40,0.12)');
   ctx.fillStyle = wash;
-  ctx.fillRect(0, 0, 960, 656);
+  ctx.fillRect(0, 0, mansion.w, mansion.h);
 
   // --- carpet runner through the central hall ---
   ctx.fillStyle = '#4d1822';
@@ -522,7 +553,7 @@ export function drawWorld(ctx, world) {
   ctx.textAlign = 'left';
   ctx.fillStyle = GOLD;
   ctx.font = '700 19px Georgia, serif';
-  ctx.fillText('THE GILDED HOUR', 16, 26);
+  ctx.fillText(`THE GILDED HOUR · LV ${world.levelCfg.n}`, 16, 26);
   ctx.font = '600 11px system-ui, sans-serif';
   ctx.fillStyle = '#9a8a6a';
   const dot = (label, done, x) => {
@@ -573,7 +604,7 @@ export function drawWorld(ctx, world) {
   ctx.fillStyle = '#e8e2d2';
   ctx.font = '700 12px system-ui, sans-serif';
   ctx.fillText('NERVES', 640, 42);
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < world.levelCfg.nerves; i++) {
     ctx.fillStyle = i < rook.nerves ? '#ff5a4a' : '#3a3348';
     ctx.beginPath();
     ctx.arc(700 + i * 16, 38, 6, 0, Math.PI * 2);
@@ -597,8 +628,8 @@ export function drawWorld(ctx, world) {
   ctx.fillRect(mmX, mmY, mmW, mmH);
   ctx.strokeStyle = GOLD_DIM;
   ctx.strokeRect(mmX, mmY, mmW, mmH);
-  const sx = mmW / 960;
-  const sy = mmH / 656;
+  const sx = mmW / mansion.w;
+  const sy = mmH / mansion.h;
   ctx.fillStyle = '#5a5268';
   for (const w of mansion.walls) ctx.fillRect(mmX + w.x * sx, mmY + w.y * sy, Math.max(1, w.w * sx), Math.max(1, w.h * sy));
   const mdot = (x, y, color, r) => {
@@ -660,24 +691,49 @@ function drawTitle(ctx, world) {
   ctx.textAlign = 'center';
   ctx.fillStyle = GOLD;
   ctx.font = '700 54px Georgia, serif';
-  ctx.fillText('THE GILDED HOUR', 480, 210);
+  ctx.fillText('THE GILDED HOUR', 480, 150);
   ctx.fillStyle = '#e8e2d2';
   ctx.font = '400 18px Georgia, serif';
-  ctx.fillText('Rook lifts the Aurora Star from the Marlow Gallery.', 480, 250);
-  ctx.fillText('Five guards. Three cameras. One way out.', 480, 278);
+  ctx.fillText('Rook lifts the Aurora Star from the Marlow Gallery.', 480, 185);
+  const cfg = world.levelCfg;
+  ctx.fillText(`${cfg.guards} guards. ${cfg.cameras} cameras. One way out.`, 480, 210);
   ctx.font = '400 15px system-ui, sans-serif';
   ctx.fillStyle = '#b8ac96';
-  ctx.fillText('WASD / arrows — move      SHIFT — sneak      E — take / hold to hack & pick', 480, 340);
-  ctx.fillText('Q — EMP      F — smoke      SPACE — toss a coin      M — mute', 480, 366);
+  ctx.fillText('WASD / arrows — move      SHIFT — sneak      E — take / hold to hack & pick', 480, 250);
+  ctx.fillText('Q — EMP      F — smoke      SPACE — toss a coin      M — mute', 480, 272);
+  // Level select: ten boxes, two rows of five; locked ones are greyed out.
+  ctx.fillStyle = '#e8e2d2';
+  ctx.font = '700 15px system-ui, sans-serif';
+  ctx.fillText('CHOOSE A LEVEL', 480, 318);
+  for (let n = 1; n <= 10; n++) {
+    const r = levelBoxRect(n);
+    const locked = n > world.unlocked;
+    const selected = n === world.levelCfg.n;
+    ctx.fillStyle = locked ? '#221e2e' : selected ? '#3a2c14' : '#171226';
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+    ctx.strokeStyle = selected ? GOLD : locked ? '#4a4458' : GOLD_DIM;
+    ctx.lineWidth = selected ? 2.5 : 1.5;
+    ctx.strokeRect(r.x, r.y, r.w, r.h);
+    ctx.fillStyle = locked ? '#5a5468' : selected ? GOLD : '#e8e2d2';
+    ctx.font = '700 14px system-ui, sans-serif';
+    ctx.fillText(`LV ${n}`, r.x + r.w / 2, r.y + 19);
+    ctx.fillStyle = locked ? '#5a5468' : '#9a8a6a';
+    ctx.font = '600 9px system-ui, sans-serif';
+    ctx.fillText(locked ? 'LOCKED' : getLevel(n).name, r.x + r.w / 2, r.y + 35);
+  }
+  ctx.fillStyle = '#b8ac96';
+  ctx.font = '400 13px system-ui, sans-serif';
+  ctx.fillText(levelSummary(cfg), 480, 462);
   const blink = Math.floor(world.time * 2) % 2 === 0;
   if (blink) {
     ctx.fillStyle = '#fff';
     ctx.font = '700 22px system-ui, sans-serif';
-    ctx.fillText('PRESS ENTER TO BEGIN', 480, 440);
+    ctx.fillText(`PRESS ENTER — START LEVEL ${cfg.n}: ${cfg.name}`, 480, 500);
   }
   ctx.fillStyle = '#7a7288';
   ctx.font = '400 13px system-ui, sans-serif';
-  ctx.fillText('Steal the Star, crack the vault for the Crown, reach the east exit.', 480, 500);
+  ctx.fillText('Steal the Star, crack the vault for the Crown, reach the east exit.', 480, 540);
+  ctx.fillText('Click a level box or press 1–0 to pick it. Beat a level to unlock the next.', 480, 562);
   ctx.textAlign = 'left';
 }
 
@@ -695,6 +751,15 @@ function drawEnd(ctx, world, won) {
     won ? 'Rook melts into the night. The van is already three streets away.' : 'The gallery keeps its gold tonight.',
     480,
     188,
+  );
+  ctx.fillStyle = GOLD;
+  ctx.font = '700 16px system-ui, sans-serif';
+  ctx.fillText(
+    won
+      ? `LEVEL ${world.levelCfg.n} — ${world.levelCfg.name} COMPLETE${world.level < 10 ? ` · LEVEL ${world.level + 1} UNLOCKED` : ' · ALL LEVELS DONE'}`
+      : `LEVEL ${world.levelCfg.n} — ${world.levelCfg.name}`,
+    480,
+    216,
   );
   const rows = [
     ['Aurora Star', result.star],
@@ -732,7 +797,13 @@ function drawEnd(ctx, world, won) {
   ctx.fillText('RANK: ' + result.rank, 480, y + 62);
   ctx.fillStyle = '#b8ac96';
   ctx.font = '400 14px system-ui, sans-serif';
-  ctx.fillText(`Nerves left: ${world.rook.nerves} — PRESS R TO ${won ? 'RUN IT AGAIN' : 'TRY AGAIN'}`, 480, y + 92);
+  ctx.fillText(
+    won && world.level < 10
+      ? `Nerves left: ${world.rook.nerves} — PRESS R TO RUN IT AGAIN · PRESS N FOR LEVEL ${world.level + 1}`
+      : `Nerves left: ${world.rook.nerves} — PRESS R TO ${won ? 'RUN IT AGAIN' : 'TRY AGAIN'}`,
+    480,
+    y + 92,
+  );
   ctx.textAlign = 'left';
 }
 

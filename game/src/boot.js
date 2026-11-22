@@ -8,18 +8,24 @@ import { makeRook, pressInteract, useSmoke, useEmp, useCoin } from './rook.js';
 import { makeSentries } from './sentries.js';
 import { makeDefenses } from './defenses.js';
 import { makeTones } from './tones.js';
-import { drawWorld } from './canvas.js';
+import { drawWorld, screenToWorld } from './canvas.js';
 import { updateWorld, startGame } from './sim.js';
 import { runDrills, stageScene } from './drills.js';
+import { getLevel, loadUnlocked, levelAtPoint } from './levels.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
-function makeWorld() {
-  const mansion = buildMansion();
+function makeWorld(levelN) {
+  const cfg = getLevel(levelN);
+  const mansion = buildMansion(cfg);
   return {
     mansion,
-    rook: makeRook(mansion),
+    level: cfg.n,
+    levelCfg: cfg,
+    unlocked: loadUnlocked(),
+    selectedLevel: cfg.n,
+    rook: makeRook(mansion, cfg),
     guards: makeSentries(mansion),
     defenses: makeDefenses(mansion),
     tones: makeTones(),
@@ -44,7 +50,14 @@ function makeWorld() {
   };
 }
 
-let world = makeWorld();
+/** Rebuild the world for a level and make it live. */
+function loadLevel(n) {
+  world = makeWorld(n);
+  window.__game = world;
+  return world;
+}
+
+let world = makeWorld(1);
 window.__game = world;
 
 const params = new URLSearchParams(location.search);
@@ -104,10 +117,20 @@ window.addEventListener('keydown', (e) => {
   keys.add(e.code);
   if (e.code === 'Enter' && world.state === 'title') {
     startGame(world);
-  } else if (e.code === 'KeyR' && (world.state === 'won' || world.state === 'lost')) {
-    world = makeWorld();
-    window.__game = world;
+  } else if (e.code === 'Enter' && world.state === 'won' && world.level < 10 && world.level + 1 <= world.unlocked) {
+    loadLevel(world.level + 1);
     startGame(world);
+  } else if (e.code === 'KeyR' && (world.state === 'won' || world.state === 'lost')) {
+    loadLevel(world.level);
+    startGame(world);
+  } else if (e.code === 'KeyN' && world.state === 'won' && world.level < 10 && world.level + 1 <= world.unlocked) {
+    loadLevel(world.level + 1);
+    startGame(world);
+  } else if (world.state === 'title' && /^Digit[0-9]$/.test(e.code)) {
+    const n = e.code === 'Digit0' ? 10 : Number(e.code.slice(5));
+    if (n <= world.unlocked) {
+      loadLevel(n);
+    }
   } else if (e.code === 'KeyM') {
     world.tones.toggleMute();
   } else if (world.state === 'play') {
@@ -122,21 +145,26 @@ window.addEventListener('blur', () => keys.clear());
 
 // --- input: mouse (click to walk) and touch (tap to start) ---
 canvas.addEventListener('pointerdown', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const sx = ((e.clientX - rect.left) / rect.width) * 960;
+  const sy = ((e.clientY - rect.top) / rect.height) * 720;
   if (world.state === 'title') {
+    const picked = levelAtPoint(sx, sy);
+    if (picked && picked <= world.unlocked) {
+      loadLevel(picked);
+    }
     startGame(world);
     return;
   }
   if (world.state === 'won' || world.state === 'lost') {
-    world = makeWorld();
-    window.__game = world;
+    loadLevel(world.level);
     startGame(world);
     return;
   }
   if (e.pointerType === 'touch') return;
-  const rect = canvas.getBoundingClientRect();
-  const gx = ((e.clientX - rect.left) / rect.width) * 960;
-  const gy = ((e.clientY - rect.top) / rect.height) * 720 - 64;
-  if (gy >= 0 && world.state === 'play') clickTarget = { x: gx, y: gy };
+  if (sy >= 64 && world.state === 'play') {
+    clickTarget = screenToWorld(world, sx, sy);
+  }
 });
 
 // --- input: touch (virtual joystick + action buttons) ---

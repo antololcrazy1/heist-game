@@ -41,17 +41,23 @@ export function camSees(world, cam) {
   return clearSight(world.mansion, cam.x, cam.y, rook.x, rook.y);
 }
 
-/** The two laser beams' heights this frame (they slide across the corridor). */
+/** The laser beams' heights this frame (they slide across the corridor). */
 export function laserBeams(world) {
   const l = world.mansion.lasers;
+  const count = l.count || 2;
   const mid = (l.yTop + l.yBot) / 2;
   const amp = (l.yBot - l.yTop) / 2;
-  return [mid + amp * Math.sin(l.phase), mid + amp * Math.sin(l.phase + Math.PI)];
+  const beams = [];
+  for (let i = 0; i < count; i++) {
+    beams.push(mid + amp * Math.sin(l.phase + (i * Math.PI * 2) / count));
+  }
+  return beams;
 }
 
 export function stepDefenses(world, dt) {
   const l = world.mansion.lasers;
-  l.phase += dt * 1.4;
+  l.phase += dt * 1.4 * (l.speed || 1);
+  const ar = world.levelCfg ? world.levelCfg.alarmRate : 1;
 
   // Cameras sweep and watch.
   world.camSees = false;
@@ -59,7 +65,7 @@ export function stepDefenses(world, dt) {
     cam.angle = cam.base + cam.sweep * Math.sin(world.time * 0.5 + cam.phase);
     if (!camerasDown(world) && camSees(world, cam)) {
       world.camSees = true;
-      world.alarm = Math.min(100, world.alarm + 10 * dt);
+      world.alarm = Math.min(100, world.alarm + 10 * ar * dt);
     }
   }
 

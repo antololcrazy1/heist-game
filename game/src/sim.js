@@ -7,6 +7,7 @@ import { stepRook } from './rook.js';
 import { stepSentries, guardSees } from './sentries.js';
 import { stepDefenses, camSees, camerasDown } from './defenses.js';
 import { stepAlarm, scoreOf } from './siren.js';
+import { saveUnlocked } from './levels.js';
 
 /** Start a run: play begins now, the clock starts, audio unlocks. */
 export function startGame(world) {
@@ -49,6 +50,11 @@ export function updateWorld(world, dt, input) {
   ) {
     world.state = 'won';
     world.result = scoreOf(world);
+    // Beating a level unlocks the next one.
+    if (world.level < 10) {
+      saveUnlocked(world.level + 1);
+      world.unlocked = Math.max(world.unlocked || 1, world.level + 1);
+    }
     world.tones.win();
   }
 }

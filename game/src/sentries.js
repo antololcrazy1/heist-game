@@ -49,13 +49,16 @@ function walkTo(world, g, tx, ty, speed, dt) {
   const vy = ((ty - g.y) / d) * speed * dt;
   const [nx, ny] = moveCircle(world.mansion, g.x, g.y, vx, vy, g.r);
   g.angle = angTo(g.x, g.y, nx, ny);
-  g.x = clamp(nx, 12, 948);
-  g.y = clamp(ny, 12, 644);
+  g.x = clamp(nx, 12, world.mansion.w - 12);
+  g.y = clamp(ny, 12, world.mansion.h - 12);
   return d < 8;
 }
 
 export function stepSentries(world, dt) {
   const rook = world.rook;
+  // The level turns the screws: faster guards, sharper senses.
+  const gs = world.levelCfg ? world.levelCfg.guardSpeed : 1;
+  const ar = world.levelCfg ? world.levelCfg.alarmRate : 1;
   for (const g of world.guards) {
     const sees = guardSees(world, g);
     const d = dist(g.x, g.y, rook.x, rook.y);
@@ -77,9 +80,9 @@ export function stepSentries(world, dt) {
       let rate = d < 120 ? 55 : 30;
       if (rook.sneaking) rate *= 0.5;
       else if (rook.moving) rate *= 1.5;
-      g.suspicion = Math.min(100, g.suspicion + rate * dt);
+      g.suspicion = Math.min(100, g.suspicion + rate * ar * dt);
       // Being watched is itself loud: the alarm climbs while a guard sees Rook.
-      world.alarm = Math.min(100, world.alarm + 3 * dt);
+      world.alarm = Math.min(100, world.alarm + 3 * ar * dt);
       g.lastSeen = { x: rook.x, y: rook.y };
       g.loseT = 0;
       if (g.suspicion >= 100 && g.state !== 'chase') {
@@ -111,19 +114,19 @@ export function stepSentries(world, dt) {
 
     if (g.state === 'patrol') {
       if (world.callToVault > 0) {
-        walkTo(world, g, 845, 230, 90, dt);
+        walkTo(world, g, 845, 230, 90 * gs, dt);
       } else {
         const target = g.pts[g.wp];
-        if (walkTo(world, g, target[0], target[1], 55, dt)) {
+        if (walkTo(world, g, target[0], target[1], 55 * gs, dt)) {
           g.wp = (g.wp + 1) % g.pts.length;
         }
       }
     } else if (g.state === 'suspicious') {
-      if (g.lastSeen) walkTo(world, g, g.lastSeen.x, g.lastSeen.y, 75, dt);
+      if (g.lastSeen) walkTo(world, g, g.lastSeen.x, g.lastSeen.y, 75 * gs, dt);
     } else if (g.state === 'chase') {
       const tx = g.lastSeen ? g.lastSeen.x : rook.x;
       const ty = g.lastSeen ? g.lastSeen.y : rook.y;
-      walkTo(world, g, tx, ty, 125, dt);
+      walkTo(world, g, tx, ty, 125 * gs, dt);
       if (d < 24 && rook.invuln <= 0) {
         catchRook(world);
         return;
@@ -132,16 +135,16 @@ export function stepSentries(world, dt) {
       g.searchT -= dt;
       if (g.coinTarget && g.coinT > 0) {
         g.coinT -= dt;
-        walkTo(world, g, g.coinTarget.x, g.coinTarget.y, 80, dt);
+        walkTo(world, g, g.coinTarget.x, g.coinTarget.y, 80 * gs, dt);
         if (g.coinT <= 0) g.coinTarget = null;
       } else if (g.lastSeen) {
-        if (walkTo(world, g, g.lastSeen.x, g.lastSeen.y, 60, dt) && !g.wander) {
+        if (walkTo(world, g, g.lastSeen.x, g.lastSeen.y, 60 * gs, dt) && !g.wander) {
           g.wander = {
-            x: clamp(g.lastSeen.x + (Math.random() * 200 - 100), 20, 940),
-            y: clamp(g.lastSeen.y + (Math.random() * 200 - 100), 20, 636),
+            x: clamp(g.lastSeen.x + (Math.random() * 200 - 100), 20, world.mansion.w - 20),
+            y: clamp(g.lastSeen.y + (Math.random() * 200 - 100), 20, world.mansion.h - 20),
           };
         }
-        if (g.wander) walkTo(world, g, g.wander.x, g.wander.y, 60, dt);
+        if (g.wander) walkTo(world, g, g.wander.x, g.wander.y, 60 * gs, dt);
       }
       if (g.searchT <= 0) {
         g.state = 'patrol';

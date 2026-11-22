@@ -4,8 +4,10 @@
 
 import { moveCircle } from './mansion.js';
 import { clamp, dist } from './geom.js';
+import { getLevel } from './levels.js';
 
-export function makeRook(mansion) {
+export function makeRook(mansion, cfg) {
+  const c = cfg || getLevel(1);
   return {
     x: mansion.rookStart.x,
     y: mansion.rookStart.y,
@@ -13,11 +15,11 @@ export function makeRook(mansion) {
     facing: 0,
     moving: false,
     sneaking: false,
-    nerves: 3,
+    nerves: c.nerves,
     invuln: 0,
-    smoke: 2,
-    emp: 2,
-    coins: 3,
+    smoke: c.smoke,
+    emp: c.emp,
+    coins: c.coins,
     loot: 0,
     artifactValue: 0,
     artifactsTaken: 0,
@@ -61,8 +63,8 @@ export function stepRook(world, dt, input) {
     const ny = input.y / (len || 1);
     rook.facing = Math.atan2(ny, nx);
     const [px, py] = moveCircle(mansion, rook.x, rook.y, nx * speed * dt, ny * speed * dt, rook.r);
-    rook.x = clamp(px, 12, 948);
-    rook.y = clamp(py, 12, 644);
+    rook.x = clamp(px, 12, mansion.w - 12);
+    rook.y = clamp(py, 12, mansion.h - 12);
     rook.stepAcc += dt;
     if (rook.stepAcc > 0.34) {
       rook.stepAcc = 0;
@@ -174,8 +176,8 @@ export function useCoin(world) {
   const rook = world.rook;
   if (rook.coins <= 0) return false;
   rook.coins--;
-  const cx = clamp(rook.x + Math.cos(rook.facing) * 70, 20, 940);
-  const cy = clamp(rook.y + Math.sin(rook.facing) * 70, 20, 636);
+  const cx = clamp(rook.x + Math.cos(rook.facing) * 70, 20, world.mansion.w - 20);
+  const cy = clamp(rook.y + Math.sin(rook.facing) * 70, 20, world.mansion.h - 20);
   rook.coinDrops.push({ x: cx, y: cy, t: 4 });
   world.tones.coin();
   return true;

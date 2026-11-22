@@ -10,12 +10,18 @@ import { makeDefenses, camerasDown } from './defenses.js';
 import { makeTones } from './tones.js';
 import { updateWorld, startGame } from './sim.js';
 import { scoreOf } from './siren.js';
+import { getLevel, loadUnlocked } from './levels.js';
 
 function freshWorld() {
-  const mansion = buildMansion();
+  const cfg = getLevel(1);
+  const mansion = buildMansion(cfg);
   return {
     mansion,
-    rook: makeRook(mansion),
+    level: cfg.n,
+    levelCfg: cfg,
+    unlocked: loadUnlocked(),
+    selectedLevel: cfg.n,
+    rook: makeRook(mansion, cfg),
     guards: makeSentries(mansion),
     defenses: makeDefenses(mansion),
     tones: makeTones(),
@@ -123,7 +129,9 @@ export function runDrills() {
     w.rook.x = 836;
     w.rook.y = 225;
     tick(w, 0.15);
-    return w.mansion.lasers.tripped && w.alarm >= 25;
+    // The trip adds 25 at once; the alarm then eases down a hair while
+    // nobody is watching (level 1 has no guard on the vault corridor).
+    return w.mansion.lasers.tripped && w.alarm >= 24;
   });
 
   check('Hack terminal kills the cameras', () => {
@@ -141,8 +149,8 @@ export function runDrills() {
     w.rook.x = w.mansion.star.x;
     w.rook.y = w.mansion.star.y + 10;
     pressInteract(w);
-    w.rook.x = 945;
-    w.rook.y = 330;
+    w.rook.x = w.mansion.exitZone.x + 13;
+    w.rook.y = w.mansion.exitZone.y + 30;
     tick(w, 0.1);
     return w.state === 'won';
   });
@@ -153,8 +161,8 @@ export function runDrills() {
     w.rook.x = w.mansion.star.x;
     w.rook.y = w.mansion.star.y + 10;
     pressInteract(w);
-    w.rook.x = 945;
-    w.rook.y = 330;
+    w.rook.x = w.mansion.exitZone.x + 13;
+    w.rook.y = w.mansion.exitZone.y + 30;
     tick(w, 0.1);
     const s = w.result || scoreOf(w);
     return w.state === 'won' && s.total >= 5000 && typeof s.rank === 'string' && s.rank.length > 0;
@@ -168,6 +176,7 @@ export function stageScene(world, name) {
   const m = world.mansion;
   const setGuard = (i, x, y, angle, state) => {
     const g = world.guards[i];
+    if (!g) return; // Higher levels have more guards; level 1 only has three.
     g.x = x;
     g.y = y;
     g.angle = angle;
@@ -208,7 +217,7 @@ export function stageScene(world, name) {
     world.rook.facing = -Math.PI / 2;
     m.lasers.phase = 0.6;
     setGuard(0, 380, 260, 0.4);
-    setGuard(1, 200, 600, 1.4);
+    setGuard(1, 200, 630, 1.4);
     setGuard(2, 760, 560, -1.6);
     setGuard(3, 880, 480, 2.8);
     setGuard(4, 430, 400, -0.6);
