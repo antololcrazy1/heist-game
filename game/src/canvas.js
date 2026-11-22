@@ -56,6 +56,121 @@ function drawLootLabel(ctx, x, y, text) {
   ctx.fillText(text, x, y);
 }
 
+/** Top-down thief: hooded body with a teal sash, two legs that run. */
+function drawThief(ctx, x, y, r, facing, moving, sneaking, time) {
+  const rate = sneaking ? 8 : 13;
+  const ph = moving ? time * rate : 0;
+  const bob = moving ? Math.sin(ph * 2) * 1 : 0;
+  const swing = moving ? 9 : 0;
+  const legA = Math.sin(ph) * swing;
+  const legB = Math.sin(ph + Math.PI) * swing;
+  ctx.save();
+  ctx.translate(x, y + bob);
+  ctx.rotate(facing);
+  // legs (slate grey feet, alternate forward/back along the facing)
+  ctx.fillStyle = '#4a4a58';
+  ctx.strokeStyle = '#0e0e16';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.ellipse(legA, -5.5, 5, 3, 0, 0, Math.PI * 2);
+  ctx.ellipse(legB, 5.5, 5, 3, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  // shoulders / torso, teal outline so the body reads on the dark floor
+  ctx.fillStyle = '#2e2e40';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 7.5, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#4de3c2';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // teal sash across the chest
+  ctx.strokeStyle = '#4de3c2';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-2, -9);
+  ctx.lineTo(2, 9);
+  ctx.stroke();
+  // hood (head, slightly forward) with a teal rim
+  ctx.fillStyle = '#15151f';
+  ctx.beginPath();
+  ctx.arc(3, 0, 6.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#4de3c2';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // face peeking forward from the hood, two eyes
+  ctx.fillStyle = '#0d0d14';
+  ctx.beginPath();
+  ctx.arc(5.5, 0, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#e8e2d2';
+  ctx.beginPath();
+  ctx.arc(6.5, -1.2, 0.8, 0, Math.PI * 2);
+  ctx.arc(6.5, 1.2, 0.8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/** Top-down police/security guard: navy uniform, cap with brim, gold badge. */
+function drawGuard(ctx, x, y, r, angle, time) {
+  const ph = time * 7;
+  const legA = Math.sin(ph) * 6;
+  const legB = Math.sin(ph + Math.PI) * 6;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  // legs (navy trousers, alternate as he walks his route)
+  ctx.fillStyle = '#2a3552';
+  ctx.strokeStyle = '#0f1830';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.ellipse(legA, -5.5, 4, 2.6, 0, 0, Math.PI * 2);
+  ctx.ellipse(legB, 5.5, 4, 2.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  // shoulders / navy uniform, lighter than the floor so it reads
+  ctx.fillStyle = '#2a3f6e';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 8.5, 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#0f1830';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // gold badge on the chest
+  ctx.fillStyle = '#f2c14e';
+  ctx.beginPath();
+  ctx.arc(-1, -6.5, 2.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fff3c4';
+  ctx.beginPath();
+  ctx.arc(-1, -6.5, 0.9, 0, Math.PI * 2);
+  ctx.fill();
+  // cap (head): steel-blue crown, gold band, brim forward
+  ctx.fillStyle = '#33507e';
+  ctx.beginPath();
+  ctx.arc(2, 0, 6.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#0f1830';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.strokeStyle = '#f2c14e';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(2, 0, 5, -0.9, 0.9);
+  ctx.stroke();
+  ctx.fillStyle = '#0a0f1e';
+  ctx.beginPath();
+  ctx.ellipse(8, 0, 4, 2.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // facing dot (kept from the old body)
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(9, 0, 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 export function drawWorld(ctx, world) {
   const W = 960;
   const H = 720;
@@ -332,17 +447,7 @@ export function drawWorld(ctx, world) {
     );
   }
   for (const g of world.guards) {
-    ctx.fillStyle = '#7fb2ff';
-    ctx.strokeStyle = '#1d2a44';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(g.x + Math.cos(g.angle) * 6, g.y + Math.sin(g.angle) * 6, 3, 0, Math.PI * 2);
-    ctx.fill();
+    drawGuard(ctx, g.x, g.y, g.r, g.angle, world.time);
     ctx.fillStyle = '#dfe6f2';
     ctx.font = '700 11px system-ui, sans-serif';
     ctx.textAlign = 'center';
@@ -382,17 +487,7 @@ export function drawWorld(ctx, world) {
   // --- Rook ---
   const blink = rook.invuln > 0 && Math.floor(world.time * 10) % 2 === 0;
   if (!blink) {
-    ctx.fillStyle = TEAL;
-    ctx.strokeStyle = '#0b3a32';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(rook.x, rook.y, rook.r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(rook.x + Math.cos(rook.facing) * 6, rook.y + Math.sin(rook.facing) * 6, 3.5, 0, Math.PI * 2);
-    ctx.fill();
+    drawThief(ctx, rook.x, rook.y, rook.r, rook.facing, rook.moving, rook.sneaking, world.time);
     if (rook.sneaking) {
       ctx.strokeStyle = 'rgba(77,227,194,0.7)';
       ctx.lineWidth = 1.5;
