@@ -4,7 +4,7 @@
 // dossier this program wrote. Runs on Node 22 with no install step.
 
 import { buildDossier } from './vendor/makefun-game.ts';
-import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -12,7 +12,10 @@ const here = dirname(fileURLToPath(import.meta.url));
 const outDir = process.env.MAKEFUN_OUTPUT_DIR || '/output';
 
 async function handIn() {
-  await rm(outDir, { recursive: true, force: true });
+  await mkdir(outDir, { recursive: true });
+  for (const entry of await readdir(outDir)) {
+    await rm(join(outDir, entry), { recursive: true, force: true });
+  }
   await mkdir(join(outDir, 'game'), { recursive: true });
   await mkdir(join(outDir, 'screenshots'), { recursive: true });
   await cp(join(here, 'game'), join(outDir, 'game'), { recursive: true });
