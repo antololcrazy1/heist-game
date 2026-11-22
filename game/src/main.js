@@ -1,4 +1,4 @@
-// The Gilded Hour — bootstrap. Wires the canvas, the input and the loop,
+// The Gilded Hour v2 — bootstrap. Wires the canvas, the input and the loop,
 // honours ?shot= for staged screenshots and ?selftest=1 for the in-page
 // playtest, and exposes the live game on window.__game so a headless run can
 // drive it and read its state.
@@ -27,7 +27,7 @@ window.__shot = shotName;
 
 if (shotName) {
   stageShot(game, shotName);
-  render(ctx, game);
+  render(ctx, game, input);
   document.title = `shot:${shotName}:${game.screen}`;
   if (params.get('trace') === '1') {
     window.__trace = trace;
@@ -39,7 +39,7 @@ if (shotName) {
     last = now;
     updateGame(game, input, dt);
     input.endFrame();
-    render(ctx, game);
+    render(ctx, game, input);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
@@ -61,6 +61,6 @@ if (runSelfTest) {
     box.textContent = verdict.lines.join('\n');
     box.dataset.ok = String(verdict.ok);
     document.title = verdict.ok ? 'SELFTEST PASS' : 'SELFTEST FAIL';
-    render(ctx, game);
+    render(ctx, game, input);
   });
 }

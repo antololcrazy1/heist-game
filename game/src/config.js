@@ -1,36 +1,38 @@
-// The Gilded Hour — tuning constants and the Marlow Gallery floor plan.
-// One room, three ways through it: the guarded central hall, the camera-watched
-// west corridor, and the locked east service passage. All coordinates are in
-// canvas space; the playfield is the strip below the HUD bar.
+// The Gilded Hour v2 — tuning and the Marlow Gallery after dark.
+// Rook's night has three acts in one building: lift the Aurora Star from the
+// central hall, crack the vault in the east wing (past a laser gate), then
+// slip out the east door. The gallery is split into three wings by two
+// divider walls: the west corridor (camera terminal, two artefacts), the
+// guarded central hall (the Star), and the east wing (the vault, the exit).
+// All positions are canvas pixels; the playfield is the strip under the HUD.
 
 export const VIEW = { width: 960, height: 720 };
 export const HUD_HEIGHT = 72;
 export const FIELD = { x: 0, y: HUD_HEIGHT, width: 960, height: 720 - HUD_HEIGHT };
 
-// The thief.
+// Rook.
 export const THIEF = {
   radius: 13,
-  walkSpeed: 168,
-  sneakSpeed: 92,
-  // A sneaking thief is harder to spot: guards and cameras see half as far.
+  walkSpeed: 175,
+  sneakSpeed: 95,
+  // Sneaking halves how far a watcher can spot Rook.
   sneakSpotFactor: 0.55,
 };
 
-// Vision.
+// Sight: a watcher only counts while Rook is inside its cone, in range,
+// with nothing solid between them, and not hidden by smoke.
 export const VISION = {
-  guardRange: 225,
-  guardHalfAngle: 0.61, // ~35 degrees each side
-  cameraRange: 265,
-  cameraHalfAngle: 0.52,
-  // How fast "seen" builds while the thief is inside a cone, per second.
+  guardRange: 230,
+  guardHalfAngle: 0.6,
+  cameraRange: 270,
+  cameraHalfAngle: 0.5,
   guardSeeRate: 1.35,
   cameraSeeRate: 0.9,
-  // The thief is fully spotted once seen reaches 1.
   spottedAt: 1,
 };
 
-// The alarm meter (0..100). It climbs while anyone sees the thief and falls
-// back when nobody does. At 100 the gallery locks down.
+// The alarm meter (0..100) and its stages. At 100 the gallery locks down:
+// the exit seals and every guard hunts.
 export const ALARM = {
   guardRise: 26,
   cameraRise: 15,
@@ -38,66 +40,68 @@ export const ALARM = {
   lockdownAt: 100,
   lockdownSeconds: 8,
   afterLockdown: 55,
+  laserTrip: 25,
+  vaultNoise: 12,
 };
 
-// Guards.
+// Guards. Each patrols its own beat; a guard that has stared at Rook long
+// enough breaks into a chase, and one that loses the trail searches the spot.
 export const GUARD = {
   radius: 13,
-  patrolSpeed: 62,
-  chaseSpeed: 132,
-  investigateSpeed: 96,
-  // Seconds of clear sight before a guard breaks into a chase.
+  patrolSpeed: 64,
+  chaseSpeed: 135,
+  investigateSpeed: 100,
   chaseAfter: 0.55,
-  // Seconds of no sight before a chasing guard gives up and searches.
   loseSightAfter: 2.6,
   searchSeconds: 4,
-  // A guard that gets this close to the thief catches them.
   catchDistance: 26,
   waypointPause: 1.4,
   sweepArc: 0.7,
 };
 
-// Tools. Each one costs a use; there is no way to buy more mid-heist.
+// Tools. Every use is spent; nothing restocks mid-heist.
 export const TOOLS = {
   smoke: { start: 2, radius: 95, seconds: 4 },
-  emp: { start: 1, seconds: 8 },
+  emp: { start: 2, seconds: 8 },
   coin: { start: 3, throwRange: 280, lureRadius: 210 },
   lockpickSeconds: 2.0,
   grabSeconds: 1.2,
+  vaultSeconds: 4.0,
+  terminalSeconds: 2.0,
+  terminalOfflineSeconds: 20,
 };
 
-// The run.
+// The run: nerves, loot values, and the getaway payoff.
 export const RUN = {
   nerves: 3,
   starValue: 5000,
-  artifactValue: 750,
+  crownValue: 8000,
   timeBonusStart: 3000,
   timeBonusPerSecond: 10,
   ghostBonus: 1500,
   ghostAlarmCeiling: 50,
+  cleanVaultBonus: 1000,
 };
 
-// Walls and cover. A rect is { x, y, w, h }. Walls block movement and sight;
-// cover blocks movement and sight too, but is low furniture the thief hides
-// behind. The two divider walls split the gallery into three routes.
+// Divider walls. The west one leaves an open doorway (y 372..452); the east
+// one leaves the locked service door (y 452..532).
 export const WALLS = [
-  // West divider, top half (gap y 372..452 is the west doorway).
   { x: 250, y: 72, w: 24, h: 300 },
-  // West divider, bottom half.
   { x: 250, y: 452, w: 24, h: 268 },
-  // East divider, top half (gap y 452..532 is the locked service door).
   { x: 686, y: 72, w: 24, h: 380 },
-  // East divider, bottom half.
   { x: 686, y: 532, w: 24, h: 188 },
+  // Vault room: west wall with an entrance gap (y 180..240), south wall.
+  { x: 800, y: 96, w: 12, h: 84 },
+  { x: 800, y: 240, w: 12, h: 60 },
+  { x: 800, y: 288, w: 144, h: 12 },
 ];
 
-// The locked service door fills the east gap until it is lockpicked.
 export const SERVICE_DOOR = { x: 686, y: 452, w: 24, h: 80 };
 
-// The getaway exit: a door in the top wall, north-east corner.
-export const EXIT_DOOR = { x: 856, y: 72, w: 88, h: 14 };
+// The getaway: a side door in the east wall, south end.
+export const EXIT_DOOR = { x: 946, y: 560, w: 14, h: 80 };
 
-// Low cover: display cases, benches, planters. They block sight and movement.
+// Low cover: display cases, benches, planters. Solid, and they block sight.
 export const COVER = [
   { x: 348, y: 196, w: 72, h: 34, kind: 'case' },
   { x: 540, y: 196, w: 72, h: 34, kind: 'case' },
@@ -107,27 +111,38 @@ export const COVER = [
   { x: 428, y: 522, w: 104, h: 22, kind: 'bench' },
   { x: 92, y: 340, w: 44, h: 44, kind: 'planter' },
   { x: 764, y: 620, w: 44, h: 44, kind: 'planter' },
-  { x: 764, y: 120, w: 44, h: 44, kind: 'planter' },
+  { x: 860, y: 120, w: 44, h: 44, kind: 'planter' },
+  { x: 60, y: 250, w: 56, h: 30, kind: 'case' },
+  { x: 60, y: 480, w: 56, h: 30, kind: 'case' },
 ];
 
-// The loot target: the Aurora Star on its pedestal in the middle of the hall.
+// The Aurora Star, on its pedestal in the middle of the central hall.
 export const STAR = { x: 480, y: 322, pedestal: { x: 456, y: 298, w: 48, h: 48 } };
 
-// Bonus loot: three small artefacts tucked off the main route.
+// The Gilded Crown, locked in the vault.
+export const CROWN = { x: 905, y: 198, pedestal: { x: 883, y: 176, w: 44, h: 44 } };
+
+// The camera terminal in the west corridor: hack it and every camera goes
+// dark for a while. One use only.
+export const TERMINAL = { x: 140, y: 380, radius: 34 };
+
+// Bonus loot, each with its own value. Walking over one pockets it.
 export const ARTIFACTS = [
-  { x: 150, y: 200, name: 'Jade Fox' },
-  { x: 150, y: 566, name: 'Ivory Owl' },
-  { x: 812, y: 196, name: 'Brass Moth' },
+  { x: 150, y: 200, name: 'Jade Fox', value: 750 },
+  { x: 150, y: 566, name: 'Ivory Owl', value: 750 },
+  { x: 760, y: 420, name: 'Brass Moth', value: 900 },
+  { x: 350, y: 600, name: 'Opal Serpent', value: 600 },
+  { x: 610, y: 140, name: 'Silver Hare', value: 600 },
+  { x: 900, y: 500, name: 'Crimson Mask', value: 1200 },
 ];
 
-// Where the thief slips in.
 export const ENTRY = { x: 480, y: 688 };
 
-// Guard patrols. Each guard walks its waypoints in order, pauses and sweeps
-// at each one, then loops. Facing is derived from movement and the sweep.
+// Guard beats. Facing follows movement and the sweep at each waypoint.
 export const GUARD_PATROLS = [
   {
     name: 'Marlow',
+    speed: 66,
     waypoints: [
       { x: 330, y: 260 },
       { x: 630, y: 260 },
@@ -137,6 +152,7 @@ export const GUARD_PATROLS = [
   },
   {
     name: 'Bex',
+    speed: 58,
     waypoints: [
       { x: 150, y: 150 },
       { x: 150, y: 610 },
@@ -144,20 +160,51 @@ export const GUARD_PATROLS = [
   },
   {
     name: 'Odo',
+    speed: 62,
     waypoints: [
-      { x: 836, y: 150 },
-      { x: 836, y: 580 },
+      { x: 760, y: 150 },
+      { x: 760, y: 580 },
+    ],
+  },
+  {
+    name: 'Vex',
+    speed: 60,
+    waypoints: [
+      { x: 760, y: 340 },
+      { x: 920, y: 340 },
+      { x: 920, y: 480 },
+      { x: 760, y: 480 },
+    ],
+  },
+  {
+    name: 'Sable',
+    speed: 70,
+    waypoints: [
+      { x: 350, y: 410 },
+      { x: 180, y: 400 },
+      { x: 350, y: 410 },
+      { x: 620, y: 560 },
+      { x: 480, y: 200 },
     ],
   },
 ];
 
-// Wall cameras. Each sweeps its cone back and forth around baseAngle.
+// Wall cameras. Each sweeps its cone around baseAngle on its own clock.
 export const CAMERAS = [
   { x: 262, y: 96, baseAngle: Math.PI / 2, sweep: 0.85, speed: 0.55, name: 'CAM 1' },
   { x: 698, y: 696, baseAngle: -Math.PI / 2, sweep: 0.8, speed: 0.45, name: 'CAM 2' },
+  { x: 880, y: 96, baseAngle: Math.PI / 2, sweep: 0.7, speed: 0.6, name: 'CAM 3' },
 ];
 
-// Paintings on the walls, for the gallery look. Pure decoration.
+// The laser gate inside the vault: two beams that slide up and down across
+// the entrance corridor to the Crown (x 812..860). Past x 860 the Crown's
+// pocket is safe, so the crack itself is a test of timing on the way in.
+export const LASERS = [
+  { x1: 812, x2: 860, baseY: 190, amp: 42, phase: 0, speed: 0.9 },
+  { x1: 812, x2: 860, baseY: 230, amp: 42, phase: Math.PI, speed: 0.9 },
+];
+
+// Paintings on the walls, pure decoration, gold frames and all.
 export const PAINTINGS = [
   { x: 60, y: 84, w: 120, h: 54, hue: '#b3543f' },
   { x: 780, y: 84, w: 60, h: 54, hue: '#3f6db3' },
@@ -165,9 +212,20 @@ export const PAINTINGS = [
   { x: 570, y: 84, w: 90, h: 44, hue: '#c9a227' },
   { x: 60, y: 652, w: 120, h: 54, hue: '#6d4db3' },
   { x: 780, y: 652, w: 120, h: 54, hue: '#b33f7a' },
+  { x: 300, y: 652, w: 90, h: 44, hue: '#4db3a8' },
+  { x: 570, y: 652, w: 90, h: 44, hue: '#b3893f' },
 ];
 
-// A tiny deterministic RNG so staged screenshots always look the same.
+// Warm lamp pools on the floor, for the night-gallery look.
+export const LAMPS = [
+  { x: 240, y: 160 },
+  { x: 720, y: 160 },
+  { x: 240, y: 580 },
+  { x: 720, y: 580 },
+  { x: 480, y: 120 },
+];
+
+// Deterministic RNG so staged screenshots always look the same.
 export function mulberry32(seed) {
   let a = seed >>> 0;
   return function next() {

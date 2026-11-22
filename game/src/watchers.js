@@ -1,43 +1,28 @@
-// The Gilded Hour — the people and machines watching the gallery: patrolling
-// guards with vision cones and sweeping wall cameras. A watcher only raises
-// the alarm while it can actually see the thief: inside its cone, in range,
-// with a clear line of sight, and not hidden by smoke. Being seen is fair:
-// the cone is always drawn, and a guard needs a beat of clear sight before
-// it breaks into a chase.
+// The Gilded Hour v2 — the watchers: five patrolling guards, three sweeping
+// cameras, and the laser gate in the vault. A watcher only raises the alarm
+// while it can actually see Rook: inside its cone, in range, with a clear
+// line of sight, and not hidden by smoke. The cone is always drawn, and a
+// guard needs a beat of clear sight before it breaks into a chase, so being
+// seen is fair — and the "?" above a guard's head tells you it is close.
 
 import { ALARM, GUARD, GUARD_PATROLS, VISION } from './config.js';
-import { hasLineOfSight, moveCircle, segmentThroughSmoke } from './level.js';
+import { clearSight, distance, angleDiff, angleTo, pointSegmentDistance, segmentThroughSmoke, slideCircle } from './geometry.js';
+import { sightBlockers } from './level.js';
 
-function angleTo(x1, y1, x2, y2) {
-  return Math.atan2(y2 - y1, x2 - x1);
-}
-
-function angleDifference(a, b) {
-  let d = a - b;
-  while (d > Math.PI) d -= Math.PI * 2;
-  while (d < -Math.PI) d += Math.PI * 2;
-  return d;
-}
-
-function distance(x1, y1, x2, y2) {
-  return Math.hypot(x2 - x1, y2 - y1);
-}
-
-// Can this watcher see the thief right now? Smoke between them blinds it.
 export function canSee(watcher, range, halfAngle, thief, level) {
   const dist = distance(watcher.x, watcher.y, thief.x, thief.y);
   const seenRange = thief.sneaking ? range * 0.55 : range;
   if (dist > seenRange) return false;
   const angle = angleTo(watcher.x, watcher.y, thief.x, thief.y);
-  if (Math.abs(angleDifference(angle, watcher.angle)) > halfAngle) return false;
-  if (!hasLineOfSight(watcher.x, watcher.y, thief.x, thief.y, level)) return false;
+  if (Math.abs(angleDiff(angle, watcher.angle)) > halfAngle) return false;
+  if (!clearSight(watcher.x, watcher.y, thief.x, thief.y, sightBlockers(level))) return false;
   for (const smoke of level.smokes) {
     if (segmentThroughSmoke(watcher.x, watcher.y, thief.x, thief.y, smoke)) return false;
   }
   return true;
 }
 
-export function createGuards() {
+export function buildGuards() {
   return GUARD_PATROLS.map((patrol) => {
     const start = patrol.waypoints[0];
     return {
@@ -45,38 +30,36 @@ export function createGuards() {
       x: start.x,
       y: start.y,
       angle: Math.PI / 2,
+      speed: patrol.speed,
       waypoints: patrol.waypoints,
       waypointIndex: 1,
       state: 'patrol', // patrol | investigate | chase | search
       pauseTimer: 0,
       sweepPhase: 0,
-      seen: 0, // seconds of clear sight accumulated
+      seen: 0,
       lastSeen: null,
       loseSightTimer: 0,
       searchTimer: 0,
-      target: null, // a coin or a noise to investigate
+      target: null,
       targetTimer: 0,
     };
   });
 }
 
-function moveToward(guard, tx, ty, speed, dt, level) {
+function walkToward(guard, tx, ty, speed, dt, level) {
   const dx = tx - guard.x;
   const dy = ty - guard.y;
   const dist = Math.hypot(dx, dy);
   if (dist < 1) return;
   const step = Math.min(dist, speed * dt);
-  const next = moveCircle(guard.x, guard.y, GUARD.radius, (dx / dist) * step, (dy / dist) * step, level);
+  const next = slideCircle(guard.x, guard.y, GUARD.radius, (dx / dist) * step, (dy / dist) * step, sightBlockers(level));
   guard.x = next.x;
   guard.y = next.y;
   guard.angle = Math.atan2(dy, dx);
 }
 
-// One guard, one frame. Returns 'chase' while it is actively hunting, which
-// the game uses for the tension in the HUD and the alarm hum.
-export function updateGuard(guard, dt, thief, level, time) {
-  // A parked guard is a frozen watcher for a staged shot: it holds its cone
-  // and never sees, chases or moves.
+// One guard, one frame. Returns true while it is actively hunting Rook.
+export function updateGuard(guard, dt, thief, level) {
   if (guard.parked) return false;
   const sees = canSee(guard, VISION.guardRange, VISION.guardHalfAngle, thief, level);
   if (sees) {
@@ -95,7 +78,7 @@ export function updateGuard(guard, dt, thief, level, time) {
   }
 
   if (guard.state === 'patrol') {
-    if (guard.seen >= GUARD.chaseAfter * VISION.guardSeeRate * 0.4 && guard.seen > 0.35) {
+    if (guard.seen > 0.55) {
       guard.state = 'chase';
     } else if (guard.target) {
       guard.state = 'investigate';
@@ -106,9 +89,8 @@ export function updateGuard(guard, dt, thief, level, time) {
     } else {
       const target = guard.waypoints[guard.waypointIndex];
       const before = distance(guard.x, guard.y, target.x, target.y);
-      moveToward(guard, target.x, target.y, GUARD.patrolSpeed, dt, level);
+      walkToward(guard, target.x, target.y, guard.speed, dt, level);
       const after = distance(guard.x, guard.y, target.x, target.y);
-      // Arrived, or stuck against something: move on to the next waypoint.
       if (after < 8 || after > before - 0.02) {
         guard.waypointIndex = (guard.waypointIndex + 1) % guard.waypoints.length;
         guard.pauseTimer = GUARD.waypointPause;
@@ -116,26 +98,25 @@ export function updateGuard(guard, dt, thief, level, time) {
       }
     }
   } else if (guard.state === 'investigate') {
-    const target = guard.target;
-    if (!target) {
+    if (!guard.target) {
       guard.state = 'patrol';
     } else {
-      moveToward(guard, target.x, target.y, GUARD.investigateSpeed, dt, level);
+      walkToward(guard, guard.target.x, guard.target.y, GUARD.investigateSpeed, dt, level);
       guard.targetTimer -= dt;
-      if (distance(guard.x, guard.y, target.x, target.y) < 24 || guard.targetTimer <= 0) {
+      if (distance(guard.x, guard.y, guard.target.x, guard.target.y) < 24 || guard.targetTimer <= 0) {
         guard.target = null;
         guard.state = 'patrol';
         guard.pauseTimer = 1;
       }
     }
-    if (guard.seen > 0.35) guard.state = 'chase';
+    if (guard.seen > 0.55) guard.state = 'chase';
   } else if (guard.state === 'chase') {
     const goal = guard.lastSeen || { x: thief.x, y: thief.y };
-    moveToward(guard, goal.x, goal.y, GUARD.chaseSpeed, dt, level);
+    walkToward(guard, goal.x, goal.y, GUARD.chaseSpeed, dt, level);
   } else if (guard.state === 'search') {
     guard.searchTimer -= dt;
     if (guard.lastSeen) {
-      moveToward(guard, guard.lastSeen.x, guard.lastSeen.y, GUARD.investigateSpeed, dt, level);
+      walkToward(guard, guard.lastSeen.x, guard.lastSeen.y, GUARD.investigateSpeed, dt, level);
     }
     guard.sweepPhase += dt;
     guard.angle += Math.sin(guard.sweepPhase * 2.2) * GUARD.sweepArc * dt * 1.6;
@@ -144,13 +125,14 @@ export function updateGuard(guard, dt, thief, level, time) {
       guard.lastSeen = null;
       guard.pauseTimer = 0.6;
     }
-    if (guard.seen > 0.35) guard.state = 'chase';
+    if (guard.seen > 0.55) guard.state = 'chase';
   }
 
   return guard.state === 'chase';
 }
 
-// A coin clink or a loud noise pulls the nearest guards to look at a spot.
+// A coin clink pulls the nearest guards over to look. A loud noise (the
+// vault drill, a laser trip) pulls every guard that is not already chasing.
 export function distractGuards(guards, x, y, radius) {
   let pulled = 0;
   for (const guard of guards) {
@@ -164,7 +146,15 @@ export function distractGuards(guards, x, y, radius) {
   return pulled;
 }
 
-// Cameras sweep on their own clock. Returns true while any camera sees the thief.
+export function pingGuards(guards, x, y) {
+  for (const guard of guards) {
+    if (guard.state === 'chase') continue;
+    guard.target = { x, y };
+    guard.targetTimer = 6;
+  }
+}
+
+// Cameras sweep on their own clock. Returns true while any camera sees Rook.
 export function updateCameras(level, dt, thief, time) {
   let seenByCamera = false;
   for (const camera of level.cameras) {
@@ -177,7 +167,24 @@ export function updateCameras(level, dt, thief, time) {
   return seenByCamera;
 }
 
-// How fast the alarm climbs this frame, from every watcher that sees the thief.
+// The laser gate: each beam slides up and down across the vault approach.
+// Returns the beam Rook just tripped, or null. A tripped beam goes dark for
+// three seconds so one crossing cannot chain-trip.
+export function updateLasers(level, dt, thief, time) {
+  let tripped = null;
+  for (const beam of level.lasers) {
+    beam.y = beam.baseY + Math.sin(time * beam.speed + beam.phase) * beam.amp;
+    if (time < beam.cooldownUntil) continue;
+    const gap = pointSegmentDistance(thief.x, thief.y, beam.x1, beam.y, beam.x2, beam.y);
+    if (gap < 10) {
+      beam.cooldownUntil = time + 3;
+      tripped = beam;
+    }
+  }
+  return tripped;
+}
+
+// How fast the alarm climbs this frame, from every watcher that sees Rook.
 export function alarmPressure(guards, seenByCamera) {
   let pressure = 0;
   for (const guard of guards) {

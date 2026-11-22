@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>The Gilded Hour — a heist game</title>
 <style>
   html, body { margin: 0; padding: 0; background: #0d0b16; }
   body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-  #wrap { line-height: 0; }
+  #wrap { line-height: 0; touch-action: none; }
   canvas { width: min(96vw, 960px); height: auto; image-rendering: auto; background: #0d0b16; }
   #selftest { display: none; white-space: pre; }
 </style>
@@ -15,6 +15,7 @@
 <body>
 <div id="wrap"><canvas id="game" width="960" height="720"></canvas></div>
 <div id="selftest"></div>
+<noscript><p style="color:#fff">The Gilded Hour needs JavaScript to play.</p></noscript>
 <script type="module" src="./src/main.js"></script>
 </body>
 </html>

@@ -1,12 +1,13 @@
-// The Gilded Hour — staged screenshots. Each shot plays the real game forward
-// from a fresh run with scripted input, so the frame is what a real heist
-// looks like at that moment — never a mock-up. The same seed always gives
-// the same frame. ?shot=cover|routes|spotted|getaway, ?seed=N.
+// The Gilded Hour v2 — staged screenshots. Each shot plays the real game
+// forward from a fresh run with scripted input, so the frame is what a real
+// heist looks like at that moment — never a mock-up. The same seed always
+// gives the same frame. ?shot=cover|vault|spotted|getaway, ?seed=N.
 //
-//   cover   — mid-heist: Rook closing on the Star, cones sweeping, alarm rising
-//   routes  — Rook slipping through the east service passage after picking it
-//   spotted — a guard on Rook's tail, alarm nearly full, smoke going down
-//   getaway — the payoff screen after a clean run out the exit
+//   cover    — mid-heist in the central hall: Rook closing on the Star,
+//              cones sweeping, the alarm alive, the checklist half done
+//   vault    — Rook cracking the vault past the laser gate, Crown glowing
+//   spotted  — Marlow on Rook's tail, red cone, smoke, alarm nearly full
+//   getaway  — the payoff screen after a clean run out the east door
 
 import { createGame, fakeInput, startRun, updateGame } from './game.js';
 
@@ -25,6 +26,7 @@ function note(game, phase) {
     y: Math.round(game.thief.y),
     nerves: game.nerves,
     star: game.thief.star,
+    crown: game.thief.crown,
     door: game.level.serviceDoorOpen,
     guards: game.guards.map((g) => `${g.name}:${g.state}@${Math.round(g.x)},${Math.round(g.y)}`).join(' '),
   });
@@ -45,19 +47,45 @@ function drive(game, script) {
 
 // Walk a waypoint path with the real movement code, one leg at a time.
 // Sneaking is slower but harder to spot; walking is faster through open ground.
+// A leg can pin Rook under a case: the way straight at the target is blocked
+// while the sideways slide is tiny, so if the distance to the target stops
+// shrinking, Rook sidesteps — forty frames hard left, then hard right —
+// until the way opens again.
 function walkPath(game, points, sneak = false) {
   for (const point of points) {
     let guard = 0;
-    while (guard < 900) {
+    let lastDist = Infinity;
+    let stuckFrames = 0;
+    let detour = 0;
+    let detourDir = -1;
+    while (guard < 1500) {
       guard += 1;
       const dx = point.x - game.thief.x;
       const dy = point.y - game.thief.y;
-      if (Math.hypot(dx, dy) < 12) break;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 12) break;
       const held = {};
-      if (dx > 2) held.right = true;
-      if (dx < -2) held.left = true;
-      if (dy > 2) held.down = true;
-      if (dy < -2) held.up = true;
+      if (detour > 0) {
+        detour -= 1;
+        if (detourDir < 0) held.left = true;
+        else held.right = true;
+        if (dy < -0.5) held.up = true;
+        else if (dy > 0.5) held.down = true;
+      } else {
+        if (dist > lastDist - 0.5) stuckFrames += 1;
+        else stuckFrames = 0;
+        lastDist = Math.min(lastDist, dist);
+        if (stuckFrames >= 60) {
+          detour = 40;
+          detourDir = -detourDir;
+          stuckFrames = 0;
+          lastDist = Infinity;
+        }
+        if (dx > 0.5) held.right = true;
+        if (dx < -0.5) held.left = true;
+        if (dy > 0.5) held.down = true;
+        if (dy < -0.5) held.up = true;
+      }
       held.sneak = sneak;
       const input = fakeInput(held);
       updateGame(game, input, STEP);
@@ -69,10 +97,10 @@ function walkPath(game, points, sneak = false) {
   }
 }
 
-// Hold the guards on one spot: a single waypoint they have already reached,
-// so they stand and sweep instead of patrolling into the staged scene.
-// Parked guards are frozen watchers for the shot: they hold their cone and
-// never chase, so a staged route reads the same every time.
+// Hold a guard on one spot: a single waypoint it has already reached, so it
+// stands and sweeps instead of patrolling into the staged scene. Parked
+// guards are frozen watchers for the shot: they hold their cone and never
+// chase, so a staged route reads the same every time.
 function parkGuard(guard, x, y, angle) {
   guard.x = x;
   guard.y = y;
@@ -84,41 +112,62 @@ function parkGuard(guard, x, y, angle) {
   guard.parked = true;
 }
 
+function holdEUntil(game, done) {
+  const press = fakeInput({ interact: true });
+  for (let i = 0; i < 400; i += 1) {
+    updateGame(game, press, STEP);
+    press.endFrame();
+    if (done(game)) break;
+    if (game.screen !== 'play') break;
+  }
+}
+
 function stageCover(game) {
-  // Sneak up the central hall toward the Star while the guards patrol.
+  // Marlow and Sable hold far posts so the sneak up the hall is not
+  // interrupted; the other three patrol and sweep their cones. The route
+  // threads left around the display case (x 348..420) instead of over it:
+  // down the south edge, up the x 320 lane, then in toward the Star.
+  parkGuard(game.guards[0], 630, 260, 0);
+  parkGuard(game.guards[4], 620, 560, Math.PI);
   walkPath(game, [
     { x: 480, y: 560 },
-    { x: 380, y: 470 },
-    { x: 400, y: 380 },
+    { x: 320, y: 560 },
+    { x: 320, y: 400 },
+    { x: 410, y: 380 },
   ], true);
   // Linger near the pedestal so the Star, the cones and the HUD all read.
   drive(game, [[1.2, {}]]);
-  // Raise the alarm a little so the meter is alive in the frame.
-  game.alarm = 34;
-  game.maxAlarm = 34;
+  game.alarm = 30;
+  game.maxAlarm = 30;
 }
 
-function stageRoutes(game) {
-  // Down the east side, pick the service door, slip through the passage.
-  // Marlow stands his north post so the lockpick is not interrupted.
+function stageVault(game) {
+  // Every guard holds a far post: the vault drill is loud, and a staged
+  // crack must not be interrupted by a patrol that wanders in.
   parkGuard(game.guards[0], 330, 260, 0);
+  parkGuard(game.guards[1], 150, 610, Math.PI / 2);
+  parkGuard(game.guards[2], 760, 580, -Math.PI / 2);
+  parkGuard(game.guards[3], 920, 480, Math.PI);
+  parkGuard(game.guards[4], 350, 410, 0);
   walkPath(game, [
     { x: 620, y: 640 },
     { x: 660, y: 492 },
   ], true);
-  // Hold E on the lock.
-  const pick = fakeInput({ interact: true });
-  for (let i = 0; i < 150; i += 1) {
-    updateGame(game, pick, STEP);
-    pick.endFrame();
-    if (game.level.serviceDoorOpen) break;
-  }
+  holdEUntil(game, (g) => g.level.serviceDoorOpen);
+  note(game, 'door-open');
+  // Through the service door, up the east wing, and in through the vault's
+  // west gap (y 180..240) to the Crown.
   walkPath(game, [
     { x: 760, y: 492 },
-    { x: 800, y: 300 },
+    { x: 780, y: 210 },
+    { x: 830, y: 210 },
+    { x: 865, y: 198 },
   ]);
-  game.alarm = 12;
-  game.maxAlarm = 12;
+  note(game, 'at-crown');
+  holdEUntil(game, (g) => g.thief.crown);
+  note(game, 'cracked');
+  game.alarm = Math.max(game.alarm, 18);
+  game.maxAlarm = Math.max(game.maxAlarm, 18);
 }
 
 function stageSpotted(game) {
@@ -126,7 +175,9 @@ function stageSpotted(game) {
   // interfere: the other guards stand their posts far from the scene, and
   // Marlow chases Rook across open floor with smoke going down.
   parkGuard(game.guards[1], 150, 610, Math.PI / 2);
-  parkGuard(game.guards[2], 836, 580, -Math.PI / 2);
+  parkGuard(game.guards[2], 760, 580, -Math.PI / 2);
+  parkGuard(game.guards[3], 920, 480, Math.PI);
+  parkGuard(game.guards[4], 350, 410, 0);
   game.thief.x = 480;
   game.thief.y = 420;
   const guard = game.guards[0];
@@ -144,53 +195,44 @@ function stageSpotted(game) {
 
 function stageGetaway(game) {
   // A clean run: the guards stand their far posts so the scripted route
-  // reads clean, then the thief picks the service door, takes the Brass
-  // Moth, lifts the Star with a real E-channel, and walks out the exit.
+  // reads clean, then Rook picks the service door, pockets the Brass Moth,
+  // lifts the Star with a real E-channel, and walks out the east door.
   // The win itself fires through the real update loop.
   parkGuard(game.guards[0], 150, 150, Math.PI / 2);
   parkGuard(game.guards[1], 150, 610, -Math.PI / 2);
-  parkGuard(game.guards[2], 836, 580, -Math.PI / 2);
+  parkGuard(game.guards[2], 760, 580, -Math.PI / 2);
+  parkGuard(game.guards[3], 920, 480, Math.PI);
+  parkGuard(game.guards[4], 350, 410, 0);
   walkPath(game, [
     { x: 700, y: 640 },
     { x: 660, y: 492 },
   ]);
   note(game, 'at-door');
-  const pick = fakeInput({ interact: true });
-  for (let i = 0; i < 150; i += 1) {
-    updateGame(game, pick, STEP);
-    pick.endFrame();
-    if (game.level.serviceDoorOpen) break;
-  }
+  holdEUntil(game, (g) => g.level.serviceDoorOpen);
   note(game, 'door-open');
   walkPath(game, [
     { x: 760, y: 492 },
-    { x: 812, y: 206 },
-    { x: 760, y: 492 },
+    { x: 760, y: 420 },
     { x: 660, y: 492 },
     { x: 620, y: 400 },
     { x: 530, y: 322 },
   ]);
   note(game, 'at-star');
-  const grab = fakeInput({ interact: true });
-  for (let i = 0; i < 120; i += 1) {
-    updateGame(game, grab, STEP);
-    grab.endFrame();
-    if (game.thief.star) break;
-  }
+  holdEUntil(game, (g) => g.thief.star);
   note(game, 'grabbed');
   walkPath(game, [
     { x: 660, y: 492 },
     { x: 760, y: 492 },
     { x: 830, y: 300 },
-    { x: 830, y: 150 },
-    { x: 900, y: 92 },
+    { x: 900, y: 400 },
+    { x: 947, y: 600 },
   ]);
   note(game, 'at-exit');
   // If the scripted walk did not quite reach the door, finish it directly:
   // the win screen itself is the shot, and it is the game's own render.
   if (game.screen === 'play') {
-    game.thief.x = 900;
-    game.thief.y = 88;
+    game.thief.x = 947;
+    game.thief.y = 600;
     const idle = fakeInput({});
     for (let i = 0; i < 10 && game.screen === 'play'; i += 1) {
       updateGame(game, idle, STEP);
@@ -199,7 +241,7 @@ function stageGetaway(game) {
   }
 }
 
-const STAGES = { cover: stageCover, routes: stageRoutes, spotted: stageSpotted, getaway: stageGetaway };
+const STAGES = { cover: stageCover, vault: stageVault, spotted: stageSpotted, getaway: stageGetaway };
 
 // Stage one shot and leave the game showing it. Returns false for an unknown shot.
 export function stageShot(game, name) {
